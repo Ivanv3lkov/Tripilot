@@ -1,19 +1,45 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+import {
+  logout,
+  restoreSession,
+  subscribeToAuthChanges,
+} from "../services/authService";
 
 const AuthContext = createContext(null);
 
-// TODO: Replace in-memory session with the selected auth provider (login, register, logout, restore).
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [isRestoring, setIsRestoring] = useState(true);
+
+  // Restore the persisted session once, then follow login, registration,
+  // token refresh, and logout through session changes.
+  useEffect(() => {
+    let isActive = true;
+    const unsubscribe = subscribeToAuthChanges(setUser);
+
+    restoreSession()
+      .catch(() => null)
+      .then((restoredUser) => {
+        if (!isActive) return;
+        setUser(restoredUser);
+        setIsRestoring(false);
+      });
+
+    return () => {
+      isActive = false;
+      unsubscribe();
+    };
+  }, []);
 
   const value = useMemo(
     () => ({
       user,
       isAuthenticated: user !== null,
-      signIn: (nextUser) => setUser(nextUser),
-      signOut: () => setUser(null),
+      isRestoring,
+      signOut: logout,
     }),
-    [user],
+    [user, isRestoring],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
