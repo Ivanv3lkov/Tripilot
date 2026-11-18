@@ -16,6 +16,12 @@
 6. Test the relevant flow on emulator/device when possible.
 7. Update the relevant documentation and exam checklist.
 
+## Database changes (Supabase)
+- The schema, RLS, and Storage rules in `docs/data-model.md` are the source of truth.
+- Apply database changes as SQL migrations (Supabase CLI `supabase/migrations/` or the SQL editor). Keep the SQL in the repository; do not change production tables by hand without recording it.
+- Every new table must have RLS enabled and explicit policies before the app uses it.
+- Edge Function secrets (`OPENAI_API_KEY`) are set with `supabase secrets set`, never in `.env` files that are committed or in the app.
+
 ## Git workflow
 - Make small, meaningful commits.
 - Do not squash the entire project into one initial commit.

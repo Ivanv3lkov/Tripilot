@@ -1,7 +1,6 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import TripsNavigator from "./TripsNavigator";
-import PlanTripNavigator from "./PlanTripNavigator";
+import ExploreNavigator from "./ExploreNavigator";
 import MyTripsNavigator from "./MyTripsNavigator";
 import ProfileNavigator from "./ProfileNavigator";
 
@@ -11,34 +10,14 @@ function TabsNavigator() {
   return (
     <Tabs.Navigator screenOptions={{ headerShown: false }}>
       <Tabs.Screen
-        name="TripsTab"
-        component={TripsNavigator}
+        name="ExploreTab"
+        component={ExploreNavigator}
         options={{
-          title: "Trips",
+          title: "Explore",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="airplane" color={color} size={size} />
+            <Ionicons name="compass" color={color} size={size} />
           ),
         }}
-      />
-      <Tabs.Screen
-        name="PlanTripTab"
-        component={PlanTripNavigator}
-        options={{
-          title: "Plan Trip",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="add-circle" color={color} size={size} />
-          ),
-        }}
-        listeners={({ navigation }) => ({
-          // Direct tab entry always starts the wizard at step 1.
-          tabPress: (event) => {
-            event.preventDefault();
-            navigation.navigate("PlanTripTab", {
-              screen: "PlanTrip",
-              params: { initialStep: 1 },
-            });
-          },
-        })}
       />
       <Tabs.Screen
         name="MyTripsTab"

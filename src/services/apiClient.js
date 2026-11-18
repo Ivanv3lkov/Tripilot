@@ -32,12 +32,21 @@ authApi.interceptors.response.use(
   (error) => Promise.reject(toApiError(error)),
 );
 
+// Keeps only the user fields the app needs, so the stored session stays small.
+function toSessionUser(user) {
+  return {
+    id: user.id,
+    email: user.email,
+    user_metadata: { full_name: user.user_metadata?.full_name ?? null },
+  };
+}
+
 export function toSession(data) {
   return {
     accessToken: data.access_token,
     refreshToken: data.refresh_token,
     expiresAt: data.expires_at ?? Math.floor(Date.now() / 1000) + data.expires_in,
-    user: data.user,
+    user: toSessionUser(data.user),
   };
 }
 

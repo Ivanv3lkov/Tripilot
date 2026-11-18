@@ -1,106 +1,68 @@
 # Tripilot — Product Specification
 
 ## 1. Product overview
-Tripilot is a mobile travel-planning application. Users discover destinations, generate personalized travel itineraries with AI, save trips, and manage their saved trips.
+Tripilot is an AI-powered **Travel Companion and Travel Journal** built with Expo and React Native.
 
-The exam implementation should prioritize the core journey rather than broad feature scope.
+Users discover destinations, explore five interesting attractions for each one, organize their personal trips, and keep memories of their travels through photos.
+
+Tripilot is **not** an itinerary planner. The exam implementation focuses on the core journeys below rather than broad feature scope.
 
 ## 2. Primary navigation
-The bottom tab navigator contains:
-- **Trips** — discover suggested destinations.
-- **Plan Trip** — create an itinerary through a three-step wizard.
-- **My Trips** — view and manage saved trips.
-- **Profile** — account details, profile image, settings, and logout.
+The bottom tab navigator has three tabs:
+- **Explore**: discover destinations and their attractions.
+- **My Trips**: create and manage personal trips and their photos.
+- **Profile**: basic account information and logout.
 
-## 3. Core user journeys
+## 3. Features
 
-### Journey A: Discover and plan
-1. User opens Trips.
-2. User selects a suggested destination, for example Rome, Italy.
-3. App opens Plan Trip at step 2, carrying the selected destination.
-4. User selects flexible duration or exact dates.
-5. User selects interests at step 3.
-6. User taps Plan my trip.
-7. App requests an itinerary from the backend and displays Trip Plan Preview.
-8. User saves the generated itinerary.
+### Explore
+- A destination is either a **country** (for example, Italy) or a **city in a country** (for example, Rome, Italy).
+- The Explore screen shows the **suggested destinations** from the shared catalogue, with a search field that filters them by country or city.
+- Opening a destination shows its name, description, cover image, and **five interesting attractions**, each with a short description and an image.
+- **Only the admin adds destinations.** The admin runs the Supabase Edge Function `generate-destination`, which uses OpenAI for the text and Unsplash for the images and saves the result once in Supabase. Users never trigger AI generation.
+- AI-generated content is labelled as such. Images show a "Photo: Unsplash" credit link. Do not describe attractions as "the most popular" or present a ranking; they are "interesting attractions".
 
-### Journey B: Start planning directly
-1. User opens Plan Trip from the tab bar.
-2. Wizard starts at step 1.
-3. User chooses country and optionally city.
-4. User completes steps 2 and 3 and generates the itinerary.
+### My Trips
+- A trip belongs to one user and one destination.
+- A trip can be created:
+  - manually from My Trips by selecting a destination, or
+  - directly from a destination in Explore ("Create trip").
+- Fields: destination (required, cannot be changed later), title (required), start/end dates (optional), notes (optional).
+- My Trips lists the user's trips with pull-to-refresh. A trip opens Trip Details, where the user can edit or delete it.
 
-### Journey C: Manage saved trips
-1. User opens My Trips.
-2. App loads saved trips from the selected external data source.
-3. User can refresh the list, open a trip, edit it, or delete it.
-4. Trip Details is opened using a trip ID route parameter.
+### Travel photos
+- In Trip Details, the user adds photos with the **camera** or from the **gallery** (Expo ImagePicker).
+- Photos are uploaded to a private Supabase Storage bucket.
+- Each photo belongs to a trip and can optionally be linked to one of the destination's attractions.
+- A photo can have an optional caption. The user can edit the caption or link and delete the photo.
 
-## 4. Plan Trip wizard
+### Profile
+- Shows basic account information from Supabase Auth (email, display name).
+- Logout.
 
-### Step 1 — Destination
-- Country is required.
-- City is optional if country-wide planning is supported.
-- If city is provided, the itinerary should focus on that city.
-- If only country is provided, the backend/model may propose a suitable route within that country.
-- Destination may be prefilled from the Trips screen.
-- Provide Continue and Back navigation.
+## 4. Core user journeys
 
-### Step 2 — Dates
-Offer two mutually exclusive modes:
-- **I'm flexible**: user selects trip duration in days using a stepper or slider.
-- **Set dates**: user selects start and end dates using a date-range selection UI.
+### A: Explore → create trip
+1. User opens Explore and selects a suggested destination, or filters by "Rome".
+2. Destination Details shows the description, cover image, and five attractions.
+3. User taps **Create trip**. The trip form opens with the destination prefilled.
+4. User enters a title and optional dates/notes and saves. The trip appears in My Trips.
 
-Rules:
-- Flexible duration must be a positive integer within a defined UI limit.
-- For exact dates, end date must be after start date.
-- Derive duration from the selected dates; do not ask the user to enter a second conflicting duration.
-- Store the selected mode and relevant values.
+### B: Create trip manually
+1. User opens My Trips and taps **New trip**.
+2. User selects a destination from the catalogue, fills in the form, and saves.
 
-### Step 3 — Interests
-Display a summary of the chosen destination and dates/duration.
-Allow multiple selections, for example:
-- History
-- Architecture
-- Nature
-- Food
-- Museums
-- Shopping
-- Nightlife
-- Local experiences
+### C: Manage trips and photos
+1. My Trips loads the user's trips. The user can pull to refresh.
+2. User opens Trip Details (by `tripId`), which shows trip info, the destination's attractions, and the photo gallery.
+3. User edits or deletes the trip.
+4. User adds a photo (camera or gallery), optionally links it to an attraction, adds a caption, and uploads it.
 
-Actions:
-- Clear — removes all selected interests.
-- Plan my trip — validates the form and sends the generation request.
-- Require at least one interest unless the product decision is deliberately changed.
-
-## 5. AI itinerary result
-Trip Plan Preview should display:
-- Destination and duration/date range.
-- Day-by-day itinerary.
-- Each day has a title and ordered attractions.
-- Each attraction has a name, short description, and category; address/coordinates may be included when reliably available.
-- Loading, error, retry, and empty-result states.
-- Save Trip action.
-
-Do not claim objective global popularity ranking when the system only uses an LLM's general knowledge. If verifiable attraction data/ranking is required, integrate a trusted places data provider and document its source and limitations.
-
-## 6. Saved trips
-A saved trip should retain:
-- Destination.
-- Travel dates or flexible duration.
-- Interests.
-- Generated itinerary.
-- Created/updated timestamps.
-- Owner/user ID when authentication is implemented.
-
-My Trips supports list, refresh, details, edit, and delete.
-
-## 7. Explicit non-goals for the exam MVP
+## 5. Explicit non-goals for the exam MVP
 Do not add these unless the user explicitly approves:
-- AI chat or memory assistant.
-- Travel social network or public sharing.
-- Journal/diary entries.
-- Booking flights/hotels.
-- Complex maps/navigation.
-- Unrelated recommendation engines.
+- Day-by-day itineraries, daily or hourly schedules, AI-generated routes.
+- Visited tracking, ratings, per-attraction notes (`trip_attractions`).
+- A `profiles` table, avatars, or profile editing.
+- Budgets, expenses, hotel/flight bookings.
+- Interests, tags, or recommendation engines.
+- AI chat, social features, public sharing, maps/navigation.

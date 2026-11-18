@@ -1,18 +1,24 @@
 import { createStackNavigator } from "@react-navigation/stack";
-import TripsScreen from "../screens/TripsScreen";
+import ExploreScreen from "../screens/ExploreScreen";
+import DestinationDetailsScreen from "../screens/DestinationDetailsScreen";
 
 const Stack = createStackNavigator();
 
-function TripsNavigator() {
+function ExploreNavigator() {
   return (
     <Stack.Navigator>
       <Stack.Screen
-        name="Trips"
-        component={TripsScreen}
-        options={{ title: "Trips" }}
+        name="Explore"
+        component={ExploreScreen}
+        options={{ title: "Explore" }}
+      />
+      <Stack.Screen
+        name="DestinationDetails"
+        component={DestinationDetailsScreen}
+        options={{ title: "Destination" }}
       />
     </Stack.Navigator>
   );
 }
 
-export default TripsNavigator;
+export default ExploreNavigator;

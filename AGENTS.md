@@ -43,29 +43,29 @@ Docs: https://docs.expo.dev/eas/index.md
 # Tripilot — AI Agent Instructions
 
 ## Project purpose
-Tripilot is a React Native mobile app for discovering travel destinations, generating AI-assisted day-by-day itineraries, and managing saved trips. The project is being built for a React Native exam.
+Tripilot is an AI-powered **Travel Companion and Travel Journal** (React Native + Expo). Users discover destinations, explore five interesting attractions for each one, create personal trips, and upload travel photos. It is **not** an itinerary planner. The project is being built for a React Native exam.
 
 ## Product decisions
 - The application name is **Tripilot**.
-- The primary navigation has four tabs: **Trips**, **Plan Trip**, **My Trips**, and **Profile**.
-- Trips is a discovery screen for suggested destinations. Selecting a destination opens Plan Trip at step 2 with the destination preselected.
-- Opening Plan Trip directly starts at step 1.
-- Plan Trip is a three-step flow:
-  1. Choose destination (country and optionally city).
-  2. Choose dates: flexible duration or a date range.
-  3. Review destination and dates, select interests, then generate the itinerary.
-- The AI-generated itinerary is shown on a separate Trip Plan Preview screen. The user can save it as a Trip.
-- My Trips lists saved trips and supports details, editing, and deletion.
-- Profile includes account information and logout. Use Expo ImagePicker for a meaningful native feature such as changing the profile picture.
+- The primary navigation has three tabs: **Explore**, **My Trips**, and **Profile**.
+- A destination is a country (e.g. Italy) or a city in a country (e.g. Rome, Italy).
+- The app is for signed-in users only. Logged-out users see only Login and Register.
+- Explore shows suggested destinations from the catalogue with a search filter. Destination Details shows a description, cover image, and five interesting attractions (image + short description + "Photo: Unsplash" credit link).
+- **Only the admin adds destinations**, through the admin-only Supabase Edge Function `generate-destination` (OpenAI for the text, Unsplash for the images). The result is saved once and reused. App users never trigger AI generation and cannot write to the catalogue.
+- My Trips: a trip belongs to one user and one destination, with a title, optional dates, and optional notes. It can be created from Destination Details ("Create trip") or manually from My Trips. List with pull-to-refresh → Trip Details → edit or delete.
+- Travel photos: camera or gallery via Expo ImagePicker (the native feature), uploaded to the private Storage bucket `trip-photos`. A photo belongs to a trip, can optionally reference an attraction, and has an optional caption.
+- Profile shows basic account info from Supabase Auth and Logout.
+- Out of scope: day-by-day itineraries, schedules, AI routes, visited tracking, ratings, budgets, bookings, interests, a `profiles` table, and a `trip_attractions` table.
 
 ## Technology constraints
-- Use **JavaScript**, not TypeScript. Do not create `.ts` or `.tsx` files.
+- Use **JavaScript**, not TypeScript. Do not create `.ts` or `.tsx` files in the mobile app.
 - Use React Native with Expo.
 - Use React Navigation. The navigation must contain composed navigators and at least one Stack Navigator.
-- The proposed AI backend is Node.js on AWS Lambda, exposed through Amazon API Gateway, and calls the OpenAI API server-side.
-- Never call OpenAI directly from the mobile application. Never put an OpenAI API key in mobile code, app config, or a committed file.
-- The database and authentication provider have **not been decided yet**. Do not assume Firebase or add a database/auth provider without explicit approval. Keep persistence behind a small service layer so the provider can be selected later.
-- Do not introduce Next.js, Express, or a permanently running server unless the user explicitly changes the architecture.
+- Backend: **Supabase**, which provides Auth, PostgreSQL, Storage (`trip-photos`), and Edge Functions. **Do not use the Supabase SDK** (`@supabase/supabase-js`). The app calls the Supabase REST APIs with **axios** through the shared instances in `src/services/apiClient.js` (`authApi`, `restApi`, `storageApi`, created once with `create()`). Never create another axios instance or hardcode the base URL in services or screens. Keep HTTP calls inside service modules, use only the publishable key in the app (on the `apikey` header), and rely on Row Level Security. Do not add another auth or database provider without explicit approval.
+- AI and images: OpenAI and Unsplash are called only from the admin Edge Function `generate-destination` (`supabase/functions/`, JavaScript). Never call them from the mobile app. Never put the OpenAI key, Unsplash key, admin token, or Supabase service-role key in mobile code, app config, or a committed file.
+- Database changes go through `supabase/migrations/` and must stay in sync with `docs/data-model.md`.
+- The database schema, RLS, and Storage rules are defined in `docs/data-model.md`. Do not add tables or columns beyond it without approval.
+- Do not introduce AWS Lambda, Next.js, Express, or a permanently running server unless the user explicitly changes the architecture.
 - Prefer a small, understandable implementation appropriate for an exam project. Avoid unnecessary features and dependencies.
 
 ## Exam requirements (must remain visible during development)
@@ -78,7 +78,7 @@ Tripilot is a React Native mobile app for discovering travel destinations, gener
 - Implement GET, POST, PUT/PATCH, and preferably DELETE.
 - Show loading and error states for network operations.
 - Forms: at least two non-text input types, validation of at least three distinct fields (one with multiple rules), React Hook Form/Formik/custom validation, keyboard-safe layout, safe area, and configured status bar.
-- At least one meaningful native feature; Expo ImagePicker is the planned option.
+- At least one meaningful native feature: Expo ImagePicker (camera + gallery) for trip photos.
 - Public Git repository, at least 5 meaningful commits across at least 3 different days, README with setup/run instructions, completed Functional Guide, and a prominent working APK link.
 - Submission deadline: **December 8, 2026, 15:59**.
 
@@ -91,10 +91,10 @@ Tripilot is a React Native mobile app for discovering travel destinations, gener
 - Keep reusable UI components separate from screens.
 - Validate and normalize user input before sending it to APIs.
 - Handle loading, empty, success, and error states.
-- Do not fabricate API responses, destination facts, attraction addresses, ratings, or popularity rankings.
+- Do not fabricate API responses, destination facts, or image URLs. Do not present attractions as a popularity ranking. AI-generated content must be validated and labelled.
 - Do not commit secrets, `.env` files, credentials, signing keys, or personal data.
 - Ask before adding major dependencies, changing the architecture, or making a product decision that is currently marked undecided.
-- Do not silently expand scope with chat, journaling, social features, maps, or unrelated AI features.
+- Do not silently expand scope with itineraries, chat, social features, maps, budgets, or unrelated AI features.
 
 ## Working process
 1. Read this file and the relevant documents in `docs/` before implementation.
@@ -108,8 +108,8 @@ Tripilot is a React Native mobile app for discovering travel destinations, gener
 ## Source of truth
 - Product and scope: `docs/product-spec.md`
 - Screens and navigation: `docs/screens-and-navigation.md`
-- Architecture and undecided choices: `docs/architecture.md`
-- Data structures: `docs/data-model.md`
+- Architecture, Edge Function, and undecided choices: `docs/architecture.md`
+- Database schema, RLS, and Storage: `docs/data-model.md`
 - Exam checklist: `docs/exam-requirements.md`
 - Development workflow: `docs/development-workflow.md`
 

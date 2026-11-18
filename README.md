@@ -1,3 +1,82 @@
+# Tripilot
+
+> **APK download:** _link will be added here before submission._
+
+Tripilot is an AI-powered **Travel Companion and Travel Journal** built with Expo and React Native. You can discover destinations and five interesting attractions for each one, organize personal trips, and keep travel memories with photos.
+
+## Tech stack
+- React Native + Expo (JavaScript)
+- React Navigation (Root Stack → Bottom Tabs → Stacks)
+- Supabase: Auth, PostgreSQL (with Row Level Security), Storage, Edge Functions, accessed over REST with **axios** (no Supabase SDK)
+- OpenAI API + Unsplash API, called only from the admin Edge Function `generate-destination`
+- Expo ImagePicker (camera and gallery)
+
+## Project documentation
+- [Product specification](docs/product-spec.md)
+- [Screens and navigation](docs/screens-and-navigation.md)
+- [Architecture](docs/architecture.md)
+- [Database schema, RLS, and Storage](docs/data-model.md)
+- [Exam checklist](docs/exam-requirements.md)
+- [Development workflow](docs/development-workflow.md)
+
+## Setup
+
+### Prerequisites
+- Node.js (LTS) and npm
+- Expo Go or an Android emulator/device
+- A Supabase project
+
+### 1. Install dependencies
+```bash
+npm install
+```
+
+### 2. Configure environment variables
+Copy `.env.example` to `.env.local` and fill in your Supabase project values:
+
+```bash
+cp .env.example .env.local
+```
+
+```text
+EXPO_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+```
+
+Use only the **publishable** key in the app. Never commit `.env.local`, the service-role key, or the OpenAI key.
+
+### 3. Set up Supabase
+1. Link the project and apply the migration (tables, RLS, private `trip-photos` bucket):
+   ```bash
+   npx supabase login
+   npx supabase link --project-ref <project-ref>
+   npx supabase db push
+   ```
+   Alternatively, run `supabase/migrations/20261117000000_initial_schema.sql` in the Supabase SQL editor.
+2. Enable Email authentication in Supabase Auth.
+3. Set the Edge Function secrets and deploy it:
+   ```bash
+   npx supabase secrets set ADMIN_TOKEN=<long-random-string> OPENAI_API_KEY=<key> OPENAI_MODEL=<model> UNSPLASH_ACCESS_KEY=<key>
+   npx supabase functions deploy generate-destination
+   ```
+4. Add destinations (admin only):
+   ```bash
+   curl -X POST "https://<project-ref>.supabase.co/functions/v1/generate-destination" \
+     -H "Content-Type: application/json" \
+     -H "x-admin-token: <ADMIN_TOKEN>" \
+     -d '{ "country": "Italy", "city": "Rome" }'
+   ```
+
+### 4. Run
+```bash
+npm start          # Expo dev server
+npm run android    # open on Android
+npm run ios        # open on iOS
+npm run lint       # lint
+```
+
+---
+
 # Functional Guide
 
 ## 1. Project Overview
@@ -6,7 +85,7 @@
 
 **Application Category / Topic:** Travel
 
-**Main Purpose:** Tripilot is a modern React Native mobile application designed to be the ultimate companion for travelers. It acts as a hybrid platform combining an AI-powered travel assistant with a personal travel archive, allowing users to effortlessly plan upcoming adventures and preserve the memories of past journeys in one centralized place.
+**Main Purpose:** Tripilot is an AI-powered travel companion and travel journal. Users explore suggested destinations (a country or a city) with five interesting attractions each, create personal trips, and upload travel photos from the camera or gallery. The destination catalogue is added by the admin (OpenAI text + Unsplash images) and shared by all users.
 
 ## 2. User Access & Permissions
 
@@ -74,7 +153,7 @@ Describe the main navigation structure:
 ### Backend Type
 
 - Simulated backend (MockAPI / DummyJSON)
-- Real backend (Firebase or equivalent)
+- Real backend (Firebase or equivalent) ✅ **Supabase** (Auth, PostgreSQL with RLS, Storage, Edge Functions)
 
 ## 7. Data Operations (CRUD)
 

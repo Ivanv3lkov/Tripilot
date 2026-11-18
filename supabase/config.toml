@@ -1,0 +1,7 @@
+# Supabase CLI configuration. Only non-default settings are listed here.
+project_id = "tripilot"
+
+[functions.generate-destination]
+# Admin-only function: protected by the ADMIN_TOKEN secret instead of a user JWT.
+verify_jwt = false
+entrypoint = "./functions/generate-destination/index.js"

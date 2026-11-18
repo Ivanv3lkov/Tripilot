@@ -1,25 +1,20 @@
 import { View, Text, Button } from "react-native";
 
-function TripsScreen({ navigation }) {
-  const handleSelectDestination = (destination) => {
-    navigation.navigate("PlanTripTab", {
-      screen: "PlanTrip",
-      params: { initialStep: 2, destination },
-    });
-  };
-
+function ExploreScreen({ navigation }) {
   return (
     <View>
-      <Text>Trips Screen</Text>
-      {/* TODO: Replace with destination cards loaded from the external API. */}
+      <Text>Explore Screen</Text>
+      {/* TODO: Load suggested destinations from destinationService, add search filter, loading/error/empty states. */}
       <Button
         title="Example destination"
         onPress={() =>
-          handleSelectDestination({ country: "Italy", city: "Rome" })
+          navigation.navigate("DestinationDetails", {
+            destinationId: "example",
+          })
         }
       />
     </View>
   );
 }
 
-export default TripsScreen;
+export default ExploreScreen;
