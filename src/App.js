@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { GluestackUIProvider } from '../components/ui/gluestack-ui-provider';
 import { AuthProvider } from './contexts/AuthContext';
+import { LanguageProvider } from './i18n/LanguageContext';
 import RootNavigator from './navigation/RootNavigator';
 import '../global.css';
 
@@ -13,12 +14,14 @@ function App() {
     <GluestackUIProvider mode="light">
       <SafeAreaProvider>
         <KeyboardProvider>
-          <AuthProvider>
-            <StatusBar style="auto" />
-            <NavigationContainer>
-              <RootNavigator />
-            </NavigationContainer>
-          </AuthProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <StatusBar style="dark" />
+              <NavigationContainer>
+                <RootNavigator />
+              </NavigationContainer>
+            </AuthProvider>
+          </LanguageProvider>
         </KeyboardProvider>
       </SafeAreaProvider>
     </GluestackUIProvider>

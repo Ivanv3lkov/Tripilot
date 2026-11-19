@@ -6,6 +6,8 @@ import { Spinner } from "../../components/ui/spinner";
 import { VStack } from "../../components/ui/vstack";
 import AuthFormLayout from "../components/AuthFormLayout";
 import FormTextInput from "../components/FormTextInput";
+import { getErrorMessage } from "../i18n/errors";
+import { useTranslation } from "../i18n/LanguageContext";
 import { register } from "../services/authService";
 import { validateRegisterForm } from "../utils/validation";
 
@@ -17,6 +19,7 @@ const EMPTY_VALUES = {
 };
 
 function RegisterScreen({ navigation }) {
+  const { t } = useTranslation();
   const [values, setValues] = useState(EMPTY_VALUES);
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState(null);
@@ -46,35 +49,37 @@ function RegisterScreen({ navigation }) {
         setIsSubmitting(false);
       }
     } catch (error) {
-      setSubmitError(
-        error.message || "Could not create the account. Please try again.",
-      );
+      setSubmitError(getErrorMessage(t, error, "errors.register"));
       setIsSubmitting(false);
     }
   };
 
+  const errorText = (field) => (errors[field] ? t(errors[field]) : undefined);
+
   return (
     <AuthFormLayout
-      title="Create account"
-      subtitle="Join Tripilot to plan your next trip."
+      title={t("auth.registerTitle")}
+      subtitle={t("auth.registerSubtitle")}
       keyboardOffset={150}
     >
       <FormTextInput
-        label="Full name"
+        label={t("auth.fullName")}
+        icon="person-outline"
         value={values.fullName}
         onChangeText={setValue("fullName")}
-        error={errors.fullName}
-        placeholder="Jane Doe"
+        error={errorText("fullName")}
+        placeholder={t("auth.fullNamePlaceholder")}
         autoCapitalize="words"
         autoComplete="name"
         textContentType="name"
         returnKeyType="next"
       />
       <FormTextInput
-        label="Email"
+        label={t("auth.email")}
+        icon="mail-outline"
         value={values.email}
         onChangeText={setValue("email")}
-        error={errors.email}
+        error={errorText("email")}
         placeholder="you@example.com"
         autoCapitalize="none"
         autoComplete="email"
@@ -84,11 +89,12 @@ function RegisterScreen({ navigation }) {
         returnKeyType="next"
       />
       <FormTextInput
-        label="Password"
+        label={t("auth.password")}
+        icon="lock-closed-outline"
         value={values.password}
         onChangeText={setValue("password")}
-        error={errors.password}
-        placeholder="At least 8 characters, letters and numbers"
+        error={errorText("password")}
+        placeholder={t("auth.newPasswordPlaceholder")}
         autoCapitalize="none"
         autoComplete="new-password"
         type="password"
@@ -97,11 +103,12 @@ function RegisterScreen({ navigation }) {
         showPasswordToggle={true}
       />
       <FormTextInput
-        label="Repeat password"
+        label={t("auth.repeatPassword")}
+        icon="lock-closed-outline"
         value={values.repeatPassword}
         onChangeText={setValue("repeatPassword")}
-        error={errors.repeatPassword}
-        placeholder="Repeat your password"
+        error={errorText("repeatPassword")}
+        placeholder={t("auth.repeatPasswordPlaceholder")}
         autoCapitalize="none"
         autoComplete="new-password"
         type="password"
@@ -111,12 +118,11 @@ function RegisterScreen({ navigation }) {
         showPasswordToggle={true}
       />
 
-      <VStack space="md">
+      <VStack space="sm" className="mt-1">
         {confirmationEmail ? (
           <Alert>
             <AlertText>
-              Account created. We sent a confirmation link to{" "}
-              {confirmationEmail}. Confirm your email, then log in.
+              {t("auth.confirmationSent", { email: confirmationEmail })}
             </AlertText>
           </Alert>
         ) : null}
@@ -127,21 +133,26 @@ function RegisterScreen({ navigation }) {
           </Alert>
         ) : null}
 
-        <Button onPress={handleSubmit} isDisabled={isSubmitting}>
+        <Button
+          className="h-12 rounded-full"
+          onPress={handleSubmit}
+          isDisabled={isSubmitting}
+        >
           {isSubmitting ? (
             <Spinner className="text-primary-foreground" />
           ) : null}
-          <ButtonText>
-            {isSubmitting ? "Creating account..." : "Register"}
+          <ButtonText className="text-base font-bold">
+            {isSubmitting ? t("auth.creatingAccount") : t("auth.createAccount")}
           </ButtonText>
         </Button>
 
         <Button
           variant="link"
+          className="h-9"
           onPress={() => navigation.goBack()}
           isDisabled={isSubmitting}
         >
-          <ButtonText>Already have an account? Log in</ButtonText>
+          <ButtonText>{t("auth.toLogin")}</ButtonText>
         </Button>
       </VStack>
     </AuthFormLayout>

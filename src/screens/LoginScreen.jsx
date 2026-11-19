@@ -7,10 +7,13 @@ import { Spinner } from "../../components/ui/spinner";
 import { VStack } from "../../components/ui/vstack";
 import AuthFormLayout from "../components/AuthFormLayout";
 import FormTextInput from "../components/FormTextInput";
+import { getErrorMessage } from "../i18n/errors";
+import { useTranslation } from "../i18n/LanguageContext";
 import { login } from "../services/authService";
 import { validateLoginForm } from "../utils/validation";
 
 function LoginScreen({ navigation }) {
+  const { t } = useTranslation();
   const [values, setValues] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState(null);
@@ -44,21 +47,21 @@ function LoginScreen({ navigation }) {
       // switches to the main app.
       await login(values);
     } catch (error) {
-      setSubmitError(error.message || "Could not log in. Please try again.");
+      setSubmitError(getErrorMessage(t, error, "errors.login"));
       setIsSubmitting(false);
     }
   };
 
+  const errorText = (field) => (errors[field] ? t(errors[field]) : undefined);
+
   return (
-    <AuthFormLayout
-      title="Welcome back"
-      subtitle="Log in to continue planning."
-    >
+    <AuthFormLayout title={t("auth.loginTitle")} subtitle={t("auth.loginSubtitle")}>
       <FormTextInput
-        label="Email"
+        label={t("auth.email")}
+        icon="mail-outline"
         value={values.email}
         onChangeText={setValue("email")}
-        error={errors.email}
+        error={errorText("email")}
         placeholder="you@example.com"
         autoCapitalize="none"
         autoComplete="email"
@@ -68,11 +71,12 @@ function LoginScreen({ navigation }) {
         returnKeyType="next"
       />
       <FormTextInput
-        label="Password"
+        label={t("auth.password")}
+        icon="lock-closed-outline"
         value={values.password}
         onChangeText={setValue("password")}
-        error={errors.password}
-        placeholder="Your password"
+        error={errorText("password")}
+        placeholder={t("auth.passwordPlaceholder")}
         autoCapitalize="none"
         autoComplete="current-password"
         type="password"
@@ -81,26 +85,33 @@ function LoginScreen({ navigation }) {
         onSubmitEditing={handleSubmit}
       />
 
-      <VStack space="md">
+      <VStack space="sm" className="mt-1">
         {submitError ? (
           <Alert variant="destructive">
             <AlertText>{submitError}</AlertText>
           </Alert>
         ) : null}
 
-        <Button onPress={handleSubmit} isDisabled={isSubmitting}>
+        <Button
+          className="h-12 rounded-full"
+          onPress={handleSubmit}
+          isDisabled={isSubmitting}
+        >
           {isSubmitting ? (
             <Spinner className="text-primary-foreground" />
           ) : null}
-          <ButtonText>{isSubmitting ? "Logging in..." : "Log In"}</ButtonText>
+          <ButtonText className="text-base font-bold">
+            {isSubmitting ? t("auth.loggingIn") : t("auth.logIn")}
+          </ButtonText>
         </Button>
 
         <Button
           variant="link"
+          className="h-9"
           onPress={() => navigation.navigate("Register")}
           isDisabled={isSubmitting}
         >
-          <ButtonText>Do not have an account? Register</ButtonText>
+          <ButtonText>{t("auth.toRegister")}</ButtonText>
         </Button>
       </VStack>
     </AuthFormLayout>
