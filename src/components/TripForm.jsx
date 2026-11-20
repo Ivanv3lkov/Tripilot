@@ -107,7 +107,11 @@ function TripForm({ initialValues, submitLabel, submittingLabel, onSubmit }) {
   return (
     <KeyboardAwareScrollView
       style={{ flex: 1 }}
-      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32 + insets.bottom }}
+      contentContainerStyle={{
+        paddingHorizontal: 20,
+        paddingTop: 8,
+        paddingBottom: 32 + insets.bottom,
+      }}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
       bottomOffset={24}
@@ -161,24 +165,35 @@ function TripForm({ initialValues, submitLabel, submittingLabel, onSubmit }) {
 
       <Section title={t("tripForm.mood")}>
         <SmallLabel>{t("tripForm.category")}</SmallLabel>
-        <View className="mb-2 flex-row flex-wrap">
+        <View
+          className="mb-3 flex-row flex-wrap justify-between"
+          style={{ rowGap: 8 }}
+        >
           {CATEGORIES.map((category) => (
-            <Chip
-              key={category.value}
-              label={t(`categories.${category.value}`)}
-              icon={category.icon}
-              active={values.category === category.value}
-              onPress={() => setValue("category")(category.value)}
-            />
+            <View key={category.value} style={{ width: "32%" }}>
+              <Chip
+                fill
+                label={t(`categories.${category.value}`)}
+                icon={category.icon}
+                active={values.category === category.value}
+                onPress={() => setValue("category")(category.value)}
+              />
+            </View>
           ))}
         </View>
         {errors.category ? (
-          <Text className="mb-3 text-xs text-destructive">{errorText("category")}</Text>
+          <Text className="mb-3 text-xs text-destructive">
+            {errorText("category")}
+          </Text>
         ) : null}
 
         <SmallLabel>{t("tripForm.rating")}</SmallLabel>
         <View className="mb-4">
-          <RatingStars rating={values.rating} size={32} onChange={setValue("rating")} />
+          <RatingStars
+            rating={values.rating}
+            size={32}
+            onChange={setValue("rating")}
+          />
         </View>
 
         <View className="flex-row items-center rounded-2xl bg-secondary px-4 py-3">
@@ -187,7 +202,9 @@ function TripForm({ initialValues, submitLabel, submittingLabel, onSubmit }) {
             size={20}
             color={colors.primary}
           />
-          <Text className="ml-2.5 flex-1 text-[15px] font-bold">{t("tripForm.favorite")}</Text>
+          <Text className="ml-2.5 flex-1 text-[15px] font-bold">
+            {t("tripForm.favorite")}
+          </Text>
           <Switch
             value={values.isFavorite}
             onValueChange={setValue("isFavorite")}
@@ -206,7 +223,11 @@ function TripForm({ initialValues, submitLabel, submittingLabel, onSubmit }) {
         </Alert>
       ) : null}
 
-      <Button className="h-14 rounded-full" onPress={handleSubmit} isDisabled={isSubmitting}>
+      <Button
+        className="h-14 rounded-full"
+        onPress={handleSubmit}
+        isDisabled={isSubmitting}
+      >
         {isSubmitting ? <Spinner color={colors.white} /> : null}
         <ButtonText className="text-base font-extrabold">
           {isSubmitting ? submittingLabel : submitLabel}
