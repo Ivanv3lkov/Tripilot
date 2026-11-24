@@ -10,6 +10,8 @@ export const CATEGORIES = [
   { value: "Adventure", icon: "compass-outline" },
   { value: "Relax", icon: "cafe-outline" },
   { value: "Ski", icon: "snow-outline" },
+  { value: "Family", icon: "people-outline" },
+  { value: "Festival", icon: "musical-notes-outline" },
 ];
 
 export const CATEGORY_VALUES = CATEGORIES.map((category) => category.value);
