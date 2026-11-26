@@ -1,80 +1,29 @@
--- Tripilot initial schema: destinations, attractions, trips, trip_photos,
--- RLS policies, and the private "trip-photos" Storage bucket.
+-- Tripilot initial schema: the trips and profiles tables, their RLS policies,
+-- and the public "trip-photos" and "avatars" Storage buckets.
 -- Source of truth: docs/data-model.md
 
 -- =====================================================================
--- DESTINATIONS — shared catalogue (country or city)
--- =====================================================================
-create table public.destinations (
-  id             uuid primary key default gen_random_uuid(),
-  country        text not null check (char_length(trim(country)) between 1 and 80),
-  city           text          check (city is null or char_length(trim(city)) between 1 and 80),
-  description    text not null check (char_length(trim(description)) between 1 and 2000),
-  image_url      text not null check (image_url ~ '^https://'),
-  source_url     text          check (source_url is null or source_url ~ '^https://'),
-  content_source text not null default 'ai' check (content_source in ('ai', 'manual')),
-  created_at     timestamptz not null default now()
-);
-
--- One row per country (city IS NULL) or per country + city, case-insensitive.
-create unique index destinations_country_city_key
-  on public.destinations (lower(country), coalesce(lower(city), ''));
-
--- =====================================================================
--- ATTRACTIONS — five per destination, shared
--- =====================================================================
-create table public.attractions (
-  id             uuid primary key default gen_random_uuid(),
-  destination_id uuid not null references public.destinations (id) on delete cascade,
-  name           text not null check (char_length(trim(name)) between 1 and 120),
-  description    text not null check (char_length(trim(description)) between 1 and 1000),
-  image_url      text not null check (image_url ~ '^https://'),
-  source_url     text          check (source_url is null or source_url ~ '^https://'),
-  content_source text not null default 'ai' check (content_source in ('ai', 'manual')),
-  created_at     timestamptz not null default now()
-);
-
-create unique index attractions_destination_name_key
-  on public.attractions (destination_id, lower(name));
-
--- =====================================================================
--- TRIPS — personal, one user + one destination
+-- TRIPS — personal travel journal entries, one row per trip
 -- =====================================================================
 create table public.trips (
-  id             uuid primary key default gen_random_uuid(),
-  user_id        uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  destination_id uuid not null references public.destinations (id) on delete restrict,
-  title          text not null check (char_length(trim(title)) between 1 and 100),
-  start_date     date,
-  end_date       date,
-  notes          text check (notes is null or char_length(notes) <= 2000),
-  created_at     timestamptz not null default now(),
-  updated_at     timestamptz not null default now(),
-  constraint trips_dates_valid
-    check (end_date is null or (start_date is not null and end_date >= start_date))
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  title       text not null check (char_length(trim(title)) between 2 and 100),
+  location    text not null check (char_length(trim(location)) between 3 and 120),
+  visit_date  date not null,
+  description text check (description is null or char_length(description) <= 1000),
+  category    text not null check (category in ('City', 'Nature', 'Beach', 'History', 'Food')),
+  rating      smallint check (rating is null or rating between 1 and 5),
+  is_favorite boolean not null default false,
+  image_url   text check (image_url is null or (image_url ~ '^https://' and char_length(image_url) <= 2048)),
+  -- Set only for photos uploaded to Storage; the first folder must be the owner's id.
+  image_path  text check (image_path is null or split_part(image_path, '/', 1) = user_id::text),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  constraint trips_image_path_has_url check (image_path is null or image_url is not null)
 );
 
-create index trips_user_created_idx on public.trips (user_id, created_at desc);
-create index trips_destination_idx  on public.trips (destination_id);
-
--- =====================================================================
--- TRIP_PHOTOS — metadata only; files live in Storage bucket "trip-photos"
--- =====================================================================
-create table public.trip_photos (
-  id            uuid primary key default gen_random_uuid(),
-  trip_id       uuid not null references public.trips (id) on delete cascade,
-  attraction_id uuid references public.attractions (id) on delete set null,
-  user_id       uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  storage_path  text not null unique,
-  caption       text check (caption is null or char_length(caption) <= 300),
-  created_at    timestamptz not null default now(),
-  constraint trip_photos_path_format
-    check (storage_path = user_id::text || '/' || trip_id::text || '/' || split_part(storage_path, '/', 3)
-           and split_part(storage_path, '/', 3) <> '')
-);
-
-create index trip_photos_trip_created_idx on public.trip_photos (trip_id, created_at desc);
-create index trip_photos_attraction_idx   on public.trip_photos (attraction_id);
+create index trips_user_visit_date_idx on public.trips (user_id, visit_date desc);
 
 -- =====================================================================
 -- updated_at trigger
@@ -94,19 +43,72 @@ create trigger trips_set_updated_at
   before update on public.trips
   for each row execute function public.set_updated_at();
 
-alter table public.destinations enable row level security;
-alter table public.attractions  enable row level security;
-alter table public.trips        enable row level security;
-alter table public.trip_photos  enable row level security;
+-- =====================================================================
+-- PROFILES — one row per user, created automatically on sign-up.
+-- Name and email stay in Supabase Auth; this table holds the optional avatar.
+-- =====================================================================
+create table public.profiles (
+  id          uuid primary key references auth.users (id) on delete cascade,
+  avatar_url  text check (avatar_url is null or (avatar_url ~ '^https://' and char_length(avatar_url) <= 2048)),
+  avatar_path text check (avatar_path is null or split_part(avatar_path, '/', 1) = id::text),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  constraint profiles_avatar_path_has_url check (avatar_path is null or avatar_url is not null)
+);
 
--- ---------- Catalogue: read-only for signed-in users ----------
-create policy "destinations: authenticated can read"
-  on public.destinations for select to authenticated using (true);
+create trigger profiles_set_updated_at
+  before update on public.profiles
+  for each row execute function public.set_updated_at();
 
-create policy "attractions: authenticated can read"
-  on public.attractions for select to authenticated using (true);
+-- Runs as the table owner so it can insert while the new user has no session yet.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, created_at)
+  values (new.id, new.created_at)
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
 
--- ---------- Trips: owner only ----------
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- Users who registered before this migration also get a profile.
+insert into public.profiles (id, created_at)
+select id, created_at from auth.users
+on conflict (id) do nothing;
+
+alter table public.profiles enable row level security;
+
+create policy "profiles: owner can read"
+  on public.profiles for select to authenticated
+  using ((select auth.uid()) = id);
+
+create policy "profiles: owner can insert"
+  on public.profiles for insert to authenticated
+  with check ((select auth.uid()) = id);
+
+create policy "profiles: owner can update"
+  on public.profiles for update to authenticated
+  using ((select auth.uid()) = id)
+  with check ((select auth.uid()) = id);
+
+revoke update on public.profiles from authenticated;
+grant  update (avatar_url, avatar_path) on public.profiles to authenticated;
+
+-- =====================================================================
+-- RLS — every user sees and changes only their own trips
+-- =====================================================================
+alter table public.trips enable row level security;
+
 create policy "trips: owner can read"
   on public.trips for select to authenticated
   using ((select auth.uid()) = user_id);
@@ -124,90 +126,61 @@ create policy "trips: owner can delete"
   on public.trips for delete to authenticated
   using ((select auth.uid()) = user_id);
 
--- The destination of an existing trip cannot be changed; user_id cannot be reassigned.
+-- The owner of a trip cannot be reassigned.
 revoke update on public.trips from authenticated;
-grant  update (title, start_date, end_date, notes) on public.trips to authenticated;
+grant  update (title, location, visit_date, description, category, rating, is_favorite, image_url, image_path)
+  on public.trips to authenticated;
 
--- ---------- Trip photos: owner only, consistent with trip and attraction ----------
-create policy "trip_photos: owner can read"
-  on public.trip_photos for select to authenticated
-  using ((select auth.uid()) = user_id);
-
-create policy "trip_photos: owner can insert"
-  on public.trip_photos for insert to authenticated
-  with check (
-    (select auth.uid()) = user_id
-    and exists (
-      select 1 from public.trips t
-      where t.id = trip_id
-        and t.user_id = (select auth.uid())
-        and (
-          attraction_id is null
-          or exists (
-            select 1 from public.attractions a
-            where a.id = attraction_id and a.destination_id = t.destination_id
-          )
-        )
-    )
-  );
-
-create policy "trip_photos: owner can update"
-  on public.trip_photos for update to authenticated
-  using ((select auth.uid()) = user_id)
-  with check (
-    (select auth.uid()) = user_id
-    and exists (
-      select 1 from public.trips t
-      where t.id = trip_id
-        and t.user_id = (select auth.uid())
-        and (
-          attraction_id is null
-          or exists (
-            select 1 from public.attractions a
-            where a.id = attraction_id and a.destination_id = t.destination_id
-          )
-        )
-    )
-  );
-
-create policy "trip_photos: owner can delete"
-  on public.trip_photos for delete to authenticated
-  using ((select auth.uid()) = user_id);
-
--- Only caption and attraction link are editable; the file path and trip are fixed.
-revoke update on public.trip_photos from authenticated;
-grant  update (caption, attraction_id) on public.trip_photos to authenticated;
-
--- Bucket (can also be created in the dashboard)
+-- =====================================================================
+-- STORAGE — public buckets "trip-photos" and "avatars", files under "<user_id>/<file>"
+-- =====================================================================
+-- Public read keeps the app simple: the stored public URL works in <Image>.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('trip-photos', 'trip-photos', false, 10485760,
-        array['image/jpeg', 'image/png', 'image/webp', 'image/heic']);
+values ('trip-photos', 'trip-photos', true, 10485760,
+        array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
 
--- Read own files
-create policy "trip-photos: owner can read"
+create policy "trip-photos: owner can read own files"
   on storage.objects for select to authenticated
   using (
     bucket_id = 'trip-photos'
     and (storage.foldername(name))[1] = (select auth.uid())::text
   );
 
--- Upload only into own folder AND into a trip the user owns
-create policy "trip-photos: owner can upload to own trip"
+create policy "trip-photos: owner can upload to own folder"
   on storage.objects for insert to authenticated
   with check (
     bucket_id = 'trip-photos'
     and (storage.foldername(name))[1] = (select auth.uid())::text
-    and exists (
-      select 1 from public.trips t
-      where t.id::text = (storage.foldername(name))[2]
-        and t.user_id = (select auth.uid())
-    )
   );
 
--- Delete own files
-create policy "trip-photos: owner can delete"
+create policy "trip-photos: owner can delete own files"
   on storage.objects for delete to authenticated
   using (
     bucket_id = 'trip-photos'
+    and (storage.foldername(name))[1] = (select auth.uid())::text
+  );
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('avatars', 'avatars', true, 5242880,
+        array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
+
+create policy "avatars: owner can read own files"
+  on storage.objects for select to authenticated
+  using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = (select auth.uid())::text
+  );
+
+create policy "avatars: owner can upload to own folder"
+  on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = (select auth.uid())::text
+  );
+
+create policy "avatars: owner can delete own files"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'avatars'
     and (storage.foldername(name))[1] = (select auth.uid())::text
   );
